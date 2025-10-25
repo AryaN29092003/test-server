@@ -28,12 +28,7 @@ app = FastAPI(title="FastAPI + Supabase Auth System")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        #"http://localhost:3000",
-       "http://192.168.29.97:3000",
-        # For testing on same machine
-        "http://192.168.68.66:3000"         # System 2's IP (React frontend)
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -101,4 +96,5 @@ def login(credentials: LoginModel):
 if __name__ == "__main__":
     # Allow running `python main.py` for quick local testing
     import uvicorn
+
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
