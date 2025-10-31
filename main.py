@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 import speech_recognition as sr
 from pydub import AudioSegment
 import tempfile
+from claim_extractor_groq import ClaimExtractor
 
 # ---------- Load environment ----------
 load_dotenv()
@@ -17,11 +18,13 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 JWT_SECRET = os.getenv("JWT_SECRET")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+claim_extractor = ClaimExtractor(api_key=GROQ_API_KEY)
 
-app = FastAPI(title="VerifyLens Backend - Auth + Speech-to-Text")
+app = FastAPI(title="VerifyLens Backend - Auth + Speech-to-Text + Claim Extraction")
 
 app.add_middleware(
     CORSMiddleware,
@@ -67,6 +70,7 @@ def root():
         "endpoints": {
             "auth": ["/signup", "/login"],
             "speech": ["/transcribe"],
+            "claims": ["/extract-claims"],
             "health": ["/health"]
         }
     }
@@ -187,8 +191,53 @@ async def transcribe_audio(file: UploadFile = File(...)):
             "text": ""
         }
 
+# ==================== CLAIM EXTRACTION ENDPOINT ====================
+@app.post("/extract-claims")
+async def extract_claims(request: dict):
+    """
+    Extract factual claims from text using Groq AI
+    """
+    try:
+        text = request.get("text", "")
+        
+        if not text or text.strip() == "":
+            raise HTTPException(status_code=400, detail="Text cannot be empty")
+        
+        print(f"\n{'='*70}")
+        print(f"📝 INPUT TEXT:")
+        print(f"{'='*70}")
+        print(text)
+        print(f"{'='*70}\n")
+        
+        # Extract claims
+        claims = claim_extractor.extract_claims(text)
+        
+        # Print claims to console
+        if claims:
+            print(f"\n{'='*70}")
+            print(f"✅ EXTRACTED {len(claims)} CLAIM(S):")
+            print(f"{'='*70}")
+            for i, claim in enumerate(claims, 1):
+                print(f"{i}. {claim}")
+            print(f"{'='*70}\n")
+        else:
+            print(f"\n⚠️  No claims extracted from the text\n")
+        
+        return {
+            "success": True,
+            "claims": claims,
+            "count": len(claims),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        print(f"❌ Claim extraction error: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Error extracting claims: {str(e)}"
+        )
+
 # ==================== RUN SERVER ====================
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
-
