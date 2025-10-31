@@ -10,3 +10,4 @@ bcrypt==3.2.2
 python-multipart==0.0.20
 SpeechRecognition==3.14.3
 pydub==0.25.1
+groq
