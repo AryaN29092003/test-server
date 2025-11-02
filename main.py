@@ -253,7 +253,7 @@ def create_claim(request: ClaimRequest):
             "original_text": request.original_text,
             "status": request.status
         }
-        response = supabase.table("claims").insert(data).execute()
+        response = supabase.table("Claims").insert(data).execute()
 
         if not response.data:
             raise HTTPException(status_code=400, detail="Insert failed")
@@ -267,5 +267,6 @@ def create_claim(request: ClaimRequest):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
 
 
