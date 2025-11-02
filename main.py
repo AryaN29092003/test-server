@@ -48,7 +48,13 @@ class SignupModel(BaseModel):
 class LoginModel(BaseModel):
     email: EmailStr
     password: str
-
+    
+class ClaimRequest(BaseModel):
+    user_id: int
+    claim_text: str
+    original_text: str
+    status: str
+    
 # ==================== AUTH HELPERS ====================
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
@@ -261,4 +267,5 @@ def create_claim(request: ClaimRequest):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
 
