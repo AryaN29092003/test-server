@@ -237,7 +237,28 @@ async def extract_claims(request: dict):
             detail=f"Error extracting claims: {str(e)}"
         )
 
+@app.post("/store-claims")
+def create_claim(request: ClaimRequest):
+    try:
+        # Insert into Supabase table
+        data = {
+            "user_id": request.user_id,
+            "claim_text": request.claim_text,
+            "original_text": request.original_text,
+            "status": request.status
+        }
+        response = supabase.table("claims").insert(data).execute()
+
+        if not response.data:
+            raise HTTPException(status_code=400, detail="Insert failed")
+
+        return {"message": "Claim added successfully", "data": response.data[0]}
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+        
 # ==================== RUN SERVER ====================
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
