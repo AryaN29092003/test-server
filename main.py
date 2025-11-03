@@ -54,6 +54,10 @@ class ClaimRequest(BaseModel):
     claim_text: str
     original_text: str
     status: str
+
+class StoreClaimRequest(BaseModel):
+    text: str = ""
+    user_id: str = "2"
     
 # ==================== AUTH HELPERS ====================
 def hash_password(password: str) -> str:
@@ -199,13 +203,13 @@ async def transcribe_audio(file: UploadFile = File(...)):
 
 # ==================== CLAIM EXTRACTION ENDPOINT ====================
 @app.post("/extract-claims")
-async def extract_claims(request: dict):
+async def extract_claims(request: StoreClaimRequest):
     """
     Extract factual claims from text using Groq AI
     """
     try:
-        text = request.get("text", "")
-        user = request.get("user_id","2")
+        text = request.text
+        user = request.user_id
         
         if not text or text.strip() == "":
             raise HTTPException(status_code=400, detail="Text cannot be empty")
@@ -243,6 +247,9 @@ async def extract_claims(request: dict):
                         print("Inputted claim in DB: "+ claim)
                     # return {"message": "Claim added successfully", "data": response.data[0]}  
                     #Insert clause ends
+                except Exception as e:
+                    raise HTTPException(status_code=500, detail=str(e))
+                    
             print(f"{'='*70}\n")
         else:
             print(f"\n⚠️  No claims extracted from the text\n")
@@ -285,6 +292,7 @@ def create_claim(request: ClaimRequest):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
 
 
 
