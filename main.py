@@ -205,6 +205,7 @@ async def extract_claims(request: dict):
     """
     try:
         text = request.get("text", "")
+        user = request.get("user_id","2")
         
         if not text or text.strip() == "":
             raise HTTPException(status_code=400, detail="Text cannot be empty")
@@ -225,6 +226,23 @@ async def extract_claims(request: dict):
             print(f"{'='*70}")
             for i, claim in enumerate(claims, 1):
                 print(f"{i}. {claim}")
+                # try and except block for store-claim logic
+                try:
+                    # Insert into Supabase table
+                    data = {
+                        "user_id": user,
+                        "claim_text": claim,
+                        "original_text": text,
+                        "status": "pending"
+                    }
+                    response = supabase.table("Claims").insert(data).execute()
+    
+                    if not response.data:
+                        raise HTTPException(status_code=400, detail="Insert failed")
+                    else:
+                        print("Inputted claim in DB: "+ claim)
+                    # return {"message": "Claim added successfully", "data": response.data[0]}  
+                    #Insert clause ends
             print(f"{'='*70}\n")
         else:
             print(f"\n⚠️  No claims extracted from the text\n")
@@ -267,6 +285,7 @@ def create_claim(request: ClaimRequest):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
 
 
 
