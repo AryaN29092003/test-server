@@ -49,13 +49,13 @@ class LoginModel(BaseModel):
     email: EmailStr
     password: str
     
-class ClaimRequest(BaseModel):
+class StoreClaimRequest(BaseModel):
     user_id: int
     claim_text: str
     original_text: str
     status: str
 
-class StoreClaimRequest(BaseModel):
+class ClaimRequest(BaseModel):
     text: str = ""
     user_id: str = "2"
     
@@ -203,7 +203,7 @@ async def transcribe_audio(file: UploadFile = File(...)):
 
 # ==================== CLAIM EXTRACTION ENDPOINT ====================
 @app.post("/extract-claims")
-async def extract_claims(request: StoreClaimRequest):
+async def extract_claims(request: ClaimRequest):
     """
     Extract factual claims from text using Groq AI
     """
@@ -269,7 +269,7 @@ async def extract_claims(request: StoreClaimRequest):
         )
 
 @app.post("/store-claims")
-def create_claim(request: ClaimRequest):
+def create_claim(request: StoreClaimRequest):
     try:
         # Insert into Supabase table
         data = {
@@ -292,6 +292,7 @@ def create_claim(request: ClaimRequest):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
 
 
 
