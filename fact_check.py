@@ -29,7 +29,7 @@ def verify_claim_with_perplexity(claim_text: str) -> Dict[str, Any]:
             ],
             "explanation": "Perplexity API key not configured."
         }
-      prompt = f"""You are a fact-checking AI. Analyze the given claim and return the result strictly as a valid JSON object, with no text, markdown, or explanations outside it.
+    prompt = f"""You are a fact-checking AI. Analyze the given claim and return the result strictly as a valid JSON object, with no text, markdown, or explanations outside it.
 
 Claim:
 "{claim_text}"
