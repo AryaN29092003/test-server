@@ -11,7 +11,7 @@ import speech_recognition as sr
 from pydub import AudioSegment
 import tempfile
 from claim_extractor_groq import ClaimExtractor
-
+from fact_check import verify_claim_with_perplexity
 # ---------- Load environment ----------
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -249,6 +249,31 @@ async def extract_claims(request: ClaimRequest):
                     #Insert clause ends
                 except Exception as e:
                     raise HTTPException(status_code=500, detail=str(e))
+                # fact check module
+                fact = verify_claim_with_perplexity(claim)
+                verdict = fact["verdict"]
+                confidence = fact["confidence"]
+                citations = fact["citations"]
+                explanation = fact["explanation"]
+                # insert checked fact into DB
+                try:
+                    # Insert into Supabase table
+                    data = {
+                        "verdict": verdict,
+                        "confidence": confidence,
+                        "explanation": explanation,
+                        "citations": citations
+                    }
+                    response = supabase.table("Fact_checker").insert(data).execute()
+    
+                    if not response.data:
+                        raise HTTPException(status_code=400, detail="Insert failed")
+                    else:
+                        print("Inputted fact in DB: "+ fact)
+                    # return {"message": "Claim added successfully", "data": response.data[0]}  
+                    #Insert clause ends
+                except Exception as e:
+                    raise HTTPException(status_code=500, detail=str(e))
                     
             print(f"{'='*70}\n")
         else:
@@ -292,6 +317,7 @@ def create_claim(request: StoreClaimRequest):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
 
 
 
