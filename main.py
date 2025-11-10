@@ -269,7 +269,8 @@ async def extract_claims(request: ClaimRequest):
                     if not response.data:
                         raise HTTPException(status_code=400, detail="Insert failed")
                     else:
-                        print("Inputted fact in DB: "+ fact)
+                        print("Inputted fact in DB: ")
+                        print(fact)
                     # return {"message": "Claim added successfully", "data": response.data[0]}  
                     #Insert clause ends
                 except Exception as e:
@@ -317,6 +318,7 @@ def create_claim(request: StoreClaimRequest):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
 
 
 
