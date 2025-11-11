@@ -36,7 +36,7 @@ Claim:
 
 Return the result ONLY in this exact JSON schema (no extra fields, no nested JSON strings, all keys in double quotes):
 
-{{"verdict": "true|false|misleading|partially-true|unverified","confidence": 85,"explanation": "Brief explanation of why the verdict was given and how the confidence score was inferred.","citations": [{{"title": "string","url": "string","snippet": "string"}},{{"title": "string","url": "string","snippet": "string"}},...]}}
+{{"verdict": "true|false|misleading|partially-true|unverified","confidence": 85,"explanation": "Brief explanation of why the verdict was given and how the confidence score was inferred.","citations": [{{"title": "string","url": "string","snippet": "string","source":"string"}},{{"title": "string","url": "string","snippet": "string","source":"string"}},...]}}
 
 Output Rules:
 1. Use only double quotes for all keys and string values.
