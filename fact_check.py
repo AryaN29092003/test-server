@@ -87,8 +87,8 @@ Output Rules:
                 data.get("choices", [{}])[0]
                 .get("message", {})
                 .get("content", ""))
-            print("response content:")
-            print(type(content))
+            if content[0:7]=="```json":
+                content = content[7:-3]
             return json.loads(content)
         except json.JSONDecodeError:
             return {"verdict": "unverified", "confidence": 0, "citations": [], "explanation": "Invalid JSON in response."}
