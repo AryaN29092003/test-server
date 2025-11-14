@@ -58,7 +58,7 @@ Output Rules:
             {"role": "system", "content": "You are a fact-checking assistant. Analyze claims and provide accurate verdicts with citations from reliable sources. Always return valid JSON in your response."},
             {"role": "user", "content": prompt}
         ],
-        "max_tokens": 300,
+        "max_tokens": 500,
         "temperature": 0.2,
         "return_citations": True,
         "return_related_questions": False
