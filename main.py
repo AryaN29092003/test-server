@@ -255,6 +255,7 @@ async def extract_claims(request: ClaimRequest):
                     raise HTTPException(status_code=500, detail=str(e))
                 # fact check module
                 fact = verify_claim_with_perplexity(claim)
+                fact_id = claims_id  # Link fact check to claim via claims_id
                 verdict = fact["verdict"]
                 confidence = fact["confidence"]
                 citations = fact["citations"]
@@ -263,6 +264,7 @@ async def extract_claims(request: ClaimRequest):
                 try:
                     # Insert into Supabase table
                     data = {
+                        "fact_id": fact_id,
                         "verdict": verdict,
                         "confidence": confidence,
                         "explanation": explanation,
