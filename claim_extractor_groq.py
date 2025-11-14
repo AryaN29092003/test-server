@@ -2,11 +2,9 @@
 Simplified Claim Extractor - Groq API Version
 Extracts only the factual claims from text
 """
-
 from groq import Groq
 import json
 from typing import List
-
 
 class ClaimExtractor:
     """
@@ -47,27 +45,27 @@ class ClaimExtractor:
     
     def _build_prompt(self, text: str) -> str:
         """Build the prompt for claim extraction"""
-        return f"""Extract all factual claims from the following text.
+        return f"""Extract all factual claims from the following text EXACTLY AS STATED.
 
-A factual claim is a statement that can be verified as true or false.
-
-Rules:
-- Extract only verifiable facts, not opinions or predictions
+CRITICAL RULES:
+- Extract claims VERBATIM - do NOT correct, rephrase, or modify them
+- Keep the exact wording from the original text, even if the claim is incorrect
+- A factual claim is any statement that can be verified as true or false
+- Extract opinions, predictions, and statements as they are spoken
+- Replace pronouns with actual names when context is clear
 - Each claim should be standalone and complete
-- Replace pronouns with actual names when possible (e.g., "he" → "John Smith")
-- Keep claims concise but complete
-- Don't add any interpretation or context
+- Do NOT add interpretation, context, or corrections
 
 Text:
 {text}
 
 Return your response as a JSON array of strings with this exact structure:
 [
-  "First factual claim",
-  "Second factual claim",
-  "Third factual claim"
+  "First claim exactly as stated",
+  "Second claim exactly as stated"
 ]
 
+IMPORTANT: Return the claims EXACTLY as they appear in the text, word-for-word.
 Return ONLY the JSON array, nothing else."""
     
     def _call_groq(self, prompt: str) -> str:
@@ -77,7 +75,7 @@ Return ONLY the JSON array, nothing else."""
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are an expert at extracting factual claims from text. You always return valid JSON arrays of strings."
+                        "content": "You are an expert at extracting factual claims from text EXACTLY as stated. You NEVER correct or rephrase claims. You always return valid JSON arrays of strings with claims in their original wording."
                     },
                     {
                         "role": "user",
@@ -85,7 +83,7 @@ Return ONLY the JSON array, nothing else."""
                     }
                 ],
                 model=self.model,
-                temperature=0.3,
+                temperature=0.1,  # Lower temperature for more consistent extraction
                 max_tokens=2000,
             )
             
