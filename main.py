@@ -300,6 +300,72 @@ async def extract_claims(request: ClaimRequest):
             detail=f"Error extracting claims: {str(e)}"
         )
 
+
+# ==================== GET CLAIMS WITH FACT-CHECKS ====================
+@app.get("/get-claims")
+async def get_claims(user_id: str = "2"):
+    """
+    Retrieve all claims for a user along with their fact-check results
+    """
+    try:
+        # Fetch all claims for the user
+        claims_response = supabase.table("Claims").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+        
+        if not claims_response.data:
+            return {
+                "success": True,
+                "claims": [],
+                "count": 0
+            }
+        
+        claims = claims_response.data
+        
+        # For each claim, fetch the corresponding fact-check
+        claims_with_facts = []
+        for claim in claims:
+            claim_id = claim["claims_id"]
+            
+            # Fetch fact-check data
+            fact_response = supabase.table("Fact_checker").select("*").eq("fact_id", claim_id).execute()
+            
+            claim_data = {
+                "claims_id": claim["claims_id"],
+                "user_id": claim["user_id"],
+                "claim_text": claim["claim_text"],
+                "original_text": claim["original_text"],
+                "status": claim["status"],
+                "created_at": claim["created_at"]
+            }
+            
+            # Add fact-check data if available
+            if fact_response.data and len(fact_response.data) > 0:
+                fact = fact_response.data[0]
+                claim_data["factCheck"] = {
+                    "fact_id": fact["fact_id"],
+                    "verdict": fact["verdict"],
+                    "confidence": fact["confidence"],
+                    "explanation": fact["explanation"],
+                    "citations": fact.get("citations", [])
+                }
+            
+            claims_with_facts.append(claim_data)
+        
+        print(f"✅ Retrieved {len(claims_with_facts)} claims for user {user_id}")
+        
+        return {
+            "success": True,
+            "claims": claims_with_facts,
+            "count": len(claims_with_facts)
+        }
+        
+    except Exception as e:
+        print(f"❌ Error fetching claims: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Error fetching claims: {str(e)}"
+        )
+
+
 @app.post("/store-claims")
 def create_claim(request: StoreClaimRequest):
     try:
@@ -324,6 +390,7 @@ def create_claim(request: StoreClaimRequest):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
 
 
 
