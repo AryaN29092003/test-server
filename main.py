@@ -240,12 +240,14 @@ async def extract_claims(request: ClaimRequest):
                         "status": "pending"
                     }
                     response = supabase.table("Claims").insert(data).execute()
-    
+                    claims_id = response.data[0]["claims_id"]
                     if not response.data:
                         raise HTTPException(status_code=400, detail="Insert failed")
                     else:
                         print("Response from DB after inserting claim: ")
                         print(response.data)
+                        print("Inputted claim Id: ")
+                        print(claims_id)
                         print("Inputted claim in DB: "+ claim)
                     # return {"message": "Claim added successfully", "data": response.data[0]}  
                     #Insert clause ends
