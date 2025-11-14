@@ -244,7 +244,8 @@ async def extract_claims(request: ClaimRequest):
                     if not response.data:
                         raise HTTPException(status_code=400, detail="Insert failed")
                     else:
-                        print(response)
+                        print("Response from DB after inserting claim: ")
+                        print(response.data)
                         print("Inputted claim in DB: "+ claim)
                     # return {"message": "Claim added successfully", "data": response.data[0]}  
                     #Insert clause ends
