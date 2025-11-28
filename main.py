@@ -12,6 +12,7 @@ from pydub import AudioSegment
 import tempfile
 from claim_extractor_groq import ClaimExtractor
 from fact_check import verify_claim_with_perplexity
+from fact_checker_verifylens import verify_claim  
 # ---------- Load environment ----------
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -254,7 +255,7 @@ async def extract_claims(request: ClaimRequest):
                 except Exception as e:
                     raise HTTPException(status_code=500, detail=str(e))
                 # fact check module
-                fact = verify_claim_with_perplexity(claim)
+                fact = verify_claim(claim)
                 fact_id = claims_id  # Link fact check to claim via claims_id
                 verdict = fact["verdict"]
                 confidence = fact["confidence"]
@@ -390,6 +391,7 @@ def create_claim(request: StoreClaimRequest):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
 
 
 
