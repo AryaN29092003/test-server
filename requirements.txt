@@ -12,4 +12,6 @@ SpeechRecognition==3.14.3
 pydub==0.25.1
 groq
 requests==2.32.5
+sentence-transformers
+psycopg2-binary
 
