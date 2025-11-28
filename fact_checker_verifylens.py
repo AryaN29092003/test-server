@@ -40,7 +40,7 @@ class FactCheckerWithRAG:
     Returns the exact same format as verify_claim_with_perplexity
     """
     
-    def __init__(self, rag_confidence_threshold: int = 70):
+    def __init__(self, rag_confidence_threshold: int = 20):
         """
         Initialize the fact checker
         
