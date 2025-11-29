@@ -12,7 +12,12 @@ from pydub import AudioSegment
 import tempfile
 from claim_extractor_groq import ClaimExtractor
 from fact_check import verify_claim_with_perplexity
-from fact_checker_verifylens import verify_claim  
+from fact_checker_verifylens import verify_claim
+
+# Suppress pydub warnings
+import warnings
+warnings.filterwarnings("ignore", category=SyntaxWarning)
+
 # ---------- Load environment ----------
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -81,7 +86,7 @@ def root():
         "endpoints": {
             "auth": ["/signup", "/login"],
             "speech": ["/transcribe"],
-            "claims": ["/extract-claims"],
+            "claims": ["/extract-claims", "/get-claims"],
             "health": ["/health"]
         }
     }
@@ -206,11 +211,11 @@ async def transcribe_audio(file: UploadFile = File(...)):
 @app.post("/extract-claims")
 async def extract_claims(request: ClaimRequest):
     """
-    Extract factual claims from text using Groq AI
+    Extract factual claims from text using Groq AI and fact-check them
     """
     try:
         text = request.text
-        user = request.user_id
+        user_id = request.user_id
         
         if not text or text.strip() == "":
             raise HTTPException(status_code=400, detail="Text cannot be empty")
@@ -224,78 +229,98 @@ async def extract_claims(request: ClaimRequest):
         # Extract claims
         claims = claim_extractor.extract_claims(text)
         
-        # Print claims to console
+        # Process each claim
         if claims:
             print(f"\n{'='*70}")
             print(f"✅ EXTRACTED {len(claims)} CLAIM(S):")
             print(f"{'='*70}")
+            
+            stored_claims = []
+            
             for i, claim in enumerate(claims, 1):
-                print(f"{i}. {claim}")
-                # try and except block for store-claim logic
+                print(f"\n{i}. {claim}")
+                
                 try:
-                    # Insert into Supabase table
-                    data = {
-                        "user_id": user,
+                    # ============================================
+                    # STEP 1: Store claim in database
+                    # ============================================
+                    claim_data = {
+                        "user_id": user_id,
                         "claim_text": claim,
                         "original_text": text,
                         "status": "pending"
                     }
-                    response = supabase.table("Claims").insert(data).execute()
-                    claims_id = response.data[0]["claims_id"]
-                    if not response.data:
-                        raise HTTPException(status_code=400, detail="Insert failed")
-                    else:
-                        print("Response from DB after inserting claim: ")
-                        print(response.data)
-                        print("Inputted claim Id: ")
-                        print(claims_id)
-                        print("Inputted claim in DB: "+ claim)
-                    # return {"message": "Claim added successfully", "data": response.data[0]}  
-                    #Insert clause ends
-                except Exception as e:
-                    raise HTTPException(status_code=500, detail=str(e))
-                # fact check module
-                fact = verify_claim(claim)
-                fact_id = claims_id  # Link fact check to claim via claims_id
-                verdict = fact["verdict"]
-                confidence = fact["confidence"]
-                citations = fact["citations"]
-                explanation = fact["explanation"]
-                # insert checked fact into DB
-                try:
-                    # Insert into Supabase table
-                    data = {
-                        "fact_id": fact_id,
-                        "verdict": verdict,
-                        "confidence": confidence,
-                        "explanation": explanation,
-                        "citations": citations
-                    }
-                    response = supabase.table("Fact_checker").insert(data).execute()
-    
-                    if not response.data:
-                        raise HTTPException(status_code=400, detail="Insert failed")
-                    else:
-                        print("Inputted fact in DB: ")
-                        print(fact)
-                    # return {"message": "Claim added successfully", "data": response.data[0]}  
-                    #Insert clause ends
-                except Exception as e:
-                    raise HTTPException(status_code=500, detail=str(e))
                     
+                    claim_response = supabase.table("Claims").insert(claim_data).execute()
+                    
+                    if not claim_response.data:
+                        print(f"❌ Failed to store claim: {claim}")
+                        continue
+                    
+                    claims_id = claim_response.data[0]["claims_id"]
+                    print(f"✓ Claim stored with ID: {claims_id}")
+                    
+                    # ============================================
+                    # STEP 2: Fact-check the claim
+                    # ============================================
+                    print(f"🔍 Fact-checking claim: '{claim}'")
+                    
+                    fact = verify_claim(claim)
+                    
+                    print(f"✓ Fact-check result: {fact.get('verdict')} (confidence: {fact.get('confidence')}%)")
+                    
+                    # ============================================
+                    # STEP 3: Store fact-check result
+                    # ============================================
+                    # CRITICAL FIX: Use claims_id for BOTH fact_id AND claim_id
+                    fact_data = {
+                        "claim_id": claims_id,  # Foreign key to Claims table
+                        "verdict": fact.get("verdict", "unverified"),
+                        "confidence": fact.get("confidence", 0),
+                        "explanation": fact.get("explanation", ""),
+                        "citations": fact.get("citations", [])
+                    }
+                    
+                    fact_response = supabase.table("Fact_checker").insert(fact_data).execute()
+                    
+                    if not fact_response.data:
+                        print(f"❌ Failed to store fact-check for claim ID: {claims_id}")
+                    else:
+                        print(f"✓ Fact-check stored for claim ID: {claims_id}")
+                        stored_claims.append({
+                            "claim_id": claims_id,
+                            "claim_text": claim,
+                            "fact_check": fact
+                        })
+                    
+                except Exception as e:
+                    print(f"❌ Error processing claim '{claim}': {str(e)}")
+                    continue
+            
+            print(f"\n{'='*70}")
+            print(f"✅ Successfully processed {len(stored_claims)}/{len(claims)} claims")
             print(f"{'='*70}\n")
+            
+            return {
+                "success": True,
+                "claims": claims,
+                "count": len(claims),
+                "stored_claims": stored_claims,
+                "timestamp": datetime.utcnow().isoformat()
+            }
         else:
             print(f"\n⚠️  No claims extracted from the text\n")
-        
-        return {
-            "success": True,
-            "claims": claims,
-            "count": len(claims),
-            "timestamp": datetime.utcnow().isoformat()
-        }
+            return {
+                "success": True,
+                "claims": [],
+                "count": 0,
+                "timestamp": datetime.utcnow().isoformat()
+            }
         
     except Exception as e:
         print(f"❌ Claim extraction error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=500, 
             detail=f"Error extracting claims: {str(e)}"
@@ -326,8 +351,8 @@ async def get_claims(user_id: str = "2"):
         for claim in claims:
             claim_id = claim["claims_id"]
             
-            # Fetch fact-check data
-            fact_response = supabase.table("Fact_checker").select("*").eq("fact_id", claim_id).execute()
+            # Fetch fact-check data using claim_id (not fact_id!)
+            fact_response = supabase.table("Fact_checker").select("*").eq("claim_id", claim_id).execute()
             
             claim_data = {
                 "claims_id": claim["claims_id"],
@@ -361,6 +386,8 @@ async def get_claims(user_id: str = "2"):
         
     except Exception as e:
         print(f"❌ Error fetching claims: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=500, 
             detail=f"Error fetching claims: {str(e)}"
@@ -369,6 +396,9 @@ async def get_claims(user_id: str = "2"):
 
 @app.post("/store-claims")
 def create_claim(request: StoreClaimRequest):
+    """
+    Manually store a claim (deprecated - use /extract-claims instead)
+    """
     try:
         # Insert into Supabase table
         data = {
@@ -386,18 +416,28 @@ def create_claim(request: StoreClaimRequest):
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-        
+
+# ==================== STATS ENDPOINT (OPTIONAL) ====================
+@app.get("/fact-checker-stats")
+def get_fact_checker_stats():
+    """
+    Get statistics about RAG vs Perplexity usage
+    """
+    try:
+        from fact_checker_verifylens import get_fact_checker
+        checker = get_fact_checker()
+        stats = checker.get_stats()
+        return {
+            "success": True,
+            "stats": stats
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
 # ==================== RUN SERVER ====================
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
-
-
-
-
-
-
-
-
-
-
