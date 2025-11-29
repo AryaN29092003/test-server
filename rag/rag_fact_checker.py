@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 from groq import Groq
-from sentence_transformers import SentenceTransformer
+from huggingface_hub import InferenceClient  # NEW: Replace SentenceTransformer
 import psycopg2
 import json
 from typing import List, Dict, Tuple
@@ -11,30 +11,53 @@ load_dotenv()
 
 class RAGFactChecker:
     def __init__(self):
-        """Initialize RAG Fact Checker with Groq LLM"""
+        """Initialize RAG Fact Checker with Groq LLM and HuggingFace embeddings"""
         
         # Initialize Groq client
         self.groq_client = Groq(api_key=os.getenv('GROQ_API_KEY'))
         
-        # Initialize embedding model (same as used for database)
-        print("Loading embedding model...")
-        self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+        # NEW: Initialize HuggingFace Inference client instead of local model
+        print("Initializing HuggingFace API client...")
+        hf_token = os.getenv('HF_TOKEN')
+        if not hf_token:
+            raise ValueError("HF_TOKEN environment variable not set. Get it from https://huggingface.co/settings/tokens")
+        
+        self.hf_client = InferenceClient(api_key=hf_token)
+        self.embedding_model_name = "sentence-transformers/all-MiniLM-L6-v2"
+        print(f"✓ Using HuggingFace API for embeddings: {self.embedding_model_name}")
         
         # Connect to Supabase
         print("Connecting to database...")
         self.conn = psycopg2.connect(os.getenv('SUPABASE_CONNECTION_STRING'))
         self.cursor = self.conn.cursor()
         
-        print("✓ RAG Fact Checker initialized successfully!\n")
+        print("✓ RAG Fact Checker initialized successfully!")
+        print("  Memory saved: ~200MB (using API instead of local model)\n")
     
     def embed_query(self, query: str) -> List[float]:
-        """Convert query text to embedding vector"""
-        embedding = self.embedding_model.encode(
-            query,
-            convert_to_numpy=True,
-            normalize_embeddings=True
-        )
-        return embedding.tolist()
+        """
+        Convert query text to embedding vector using HuggingFace API
+        
+        This replaces the local SentenceTransformer model to save memory.
+        Memory saved: ~200-300MB
+        """
+        try:
+            # Call HuggingFace Inference API
+            embedding = self.hf_client.feature_extraction(
+                query,
+                model=self.embedding_model_name
+            )
+            
+            # Normalize the embedding (same as SentenceTransformer did)
+            embedding_array = np.array(embedding)
+            normalized = embedding_array / np.linalg.norm(embedding_array)
+            
+            return normalized.tolist()
+            
+        except Exception as e:
+            print(f"⚠️  Error getting embedding from HuggingFace: {e}")
+            print("Tip: Check your HF_TOKEN is valid and has not expired")
+            raise
     
     def search_relevant_documents(self, query: str, top_k: int = 5) -> List[Dict]:
         """
@@ -49,7 +72,7 @@ class RAGFactChecker:
         """
         print(f"Searching for relevant documents (top {top_k})...")
         
-        # Generate query embedding
+        # Generate query embedding using HuggingFace API
         query_embedding = self.embed_query(query)
         
         # Perform similarity search using cosine distance
@@ -170,17 +193,16 @@ Provide ONLY the JSON response, no additional text."""
             
             response_text = chat_completion.choices[0].message.content
             
-            # # Parse JSON response
-            # # Remove markdown code blocks if present
-            # if "```json" in response_text:
-            #     response_text = response_text.split("```json")[1].split("```")[0].strip()
-            # elif "```" in response_text:
-            #     response_text = response_text.split("```")<source_id data="1" title="census_batch_fetcher.py" />.split("```")[0].strip()
+            # Clean and parse JSON response
+            response_text = response_text.strip()
             
-            # result = json.loads(response_text)
-            response_text = chat_completion.choices[0].message.content
+            # Remove markdown code blocks if present
+            if "```json" in response_text:
+                response_text = response_text.split("```json")[1].split("```")[0].strip()
+            elif "```" in response_text:
+                response_text = response_text.split("```")[1].split("```")[0].strip()
+            
             result = json.loads(response_text)
-
             
             print(f"✓ Verdict: {result['verdict']} (Confidence: {result['confidence']}%)")
             
@@ -188,7 +210,7 @@ Provide ONLY the JSON response, no additional text."""
             
         except json.JSONDecodeError as e:
             print(f"⚠️  Error parsing LLM response: {e}")
-            print(f"Raw response: {response_text}")
+            print(f"Raw response: {response_text[:200]}...")
             # Return fallback response
             return {
                 "verdict": "UNVERIFIABLE",
@@ -332,7 +354,7 @@ def main():
     ]
     
     print(f"{'='*60}")
-    print("RAG FACT-CHECKER DEMO")
+    print("RAG FACT-CHECKER DEMO (Using HuggingFace API)")
     print(f"{'='*60}\n")
     
     # Fact-check each claim
