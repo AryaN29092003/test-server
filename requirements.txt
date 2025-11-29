@@ -13,5 +13,7 @@ pydub==0.25.1
 groq
 huggingface-hub
 psycopg2-binary
+requests==2.32.5
+
 
 
