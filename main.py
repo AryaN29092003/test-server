@@ -146,7 +146,9 @@ def login(credentials: LoginModel):
         "user": {
             "id": user["id"],
             "name": user["name"],
-            "email": user["email"]
+            "email": user["email"],
+            "acc_type": user["acc_type"],
+            "last_accessed": user["last_accessed"]
         }
     }
 
@@ -441,3 +443,4 @@ def get_fact_checker_stats():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
