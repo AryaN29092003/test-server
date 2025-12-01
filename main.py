@@ -13,6 +13,8 @@ import tempfile
 from claim_extractor_groq import ClaimExtractor
 from fact_check import verify_claim_with_perplexity
 from fact_checker_verifylens import verify_claim
+from datetime import datetime, date
+
 
 # Suppress pydub warnings
 import warnings
@@ -474,5 +476,6 @@ def get_fact_checker_stats():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
 
 
