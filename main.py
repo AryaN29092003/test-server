@@ -260,7 +260,21 @@ async def extract_claims(request: ClaimRequest):
         print(f"{'='*70}")
         print(text)
         print(f"{'='*70}\n")
-        
+        #fetch user record
+        user_data = supabase.table("users").select("*").eq("id", user_id).single().execute()
+
+        if user_data.data is None:
+            raise HTTPException(
+                status_code=404,
+                detail="User not found"
+            )
+        #check if credits available
+        credits = user_data["credits"]
+        if credits==0:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough credits left. Please come back tomorrow."
+            )
         # Extract claims
         claims = claim_extractor.extract_claims(text)
         
@@ -335,6 +349,9 @@ async def extract_claims(request: ClaimRequest):
             print(f"\n{'='*70}")
             print(f"✅ Successfully processed {len(stored_claims)}/{len(claims)} claims")
             print(f"{'='*70}\n")
+
+            #deduct credits from user
+            supabase.table("users").update({"credits": credits - 1}).eq("id", user_id).execute()
             
             return {
                 "success": True,
@@ -476,6 +493,7 @@ def get_fact_checker_stats():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
 
 
 
