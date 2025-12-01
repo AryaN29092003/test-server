@@ -136,7 +136,38 @@ def login(credentials: LoginModel):
             status_code=status.HTTP_401_UNAUTHORIZED, 
             detail="Invalid email or password"
         )
-    
+    #determine if last accessed today
+    last_accessed = user["last_accessed"]
+
+    # Convert to python datetime if Supabase returns string
+    if isinstance(last_accessed, str):
+        last_accessed = datetime.fromisoformat(last_accessed.replace("Z", ""))
+
+    today = date.today()
+    last_accessed_date = last_accessed.date()
+
+    # Determine new credits
+    new_credits = user["credits"]
+
+    if last_accessed_date != today:
+        # Reset credits based on acc_type
+        if user["acc_type"] == "premium":
+            new_credits = 1000
+        else:
+            new_credits = 10
+        
+        # Update in database
+        supabase.table("users").update({
+            "credits": new_credits,
+            "last_accessed": datetime.utcnow().isoformat()
+        }).eq("id", user["id"]).execute()
+
+    else:
+        # Only update last_accessed timestamp
+        supabase.table("users").update({
+            "last_accessed": datetime.utcnow().isoformat()
+        }).eq("id", user["id"]).execute()
+        
     # 3️⃣ Generate token
     token = create_access_token({"sub": user["email"], "id": user["id"]})
     
@@ -443,4 +474,5 @@ def get_fact_checker_stats():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
 
