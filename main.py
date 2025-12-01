@@ -269,7 +269,7 @@ async def extract_claims(request: ClaimRequest):
                 detail="User not found"
             )
         #check if credits available
-        credits = user_data["credits"]
+        credits = user_data.data["credits"]
         if credits==0:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -493,6 +493,7 @@ def get_fact_checker_stats():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
 
 
 
