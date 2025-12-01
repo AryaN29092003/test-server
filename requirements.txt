@@ -14,6 +14,7 @@ groq
 huggingface-hub
 psycopg2-binary
 requests==2.32.5
+numpy
 
 
 
